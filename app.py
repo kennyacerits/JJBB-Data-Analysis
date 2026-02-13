@@ -49,7 +49,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="main-header">📊 數據分析與發布系統</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">📊 揪吉嗶嗶數據分析系統</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">上傳數據、探索分析、視覺化圖表、生成報告 — 一站式數據工作台</p>', unsafe_allow_html=True)
 
 # 若尚未載入資料，提示從側邊欄或「數據上傳」頁面開始
