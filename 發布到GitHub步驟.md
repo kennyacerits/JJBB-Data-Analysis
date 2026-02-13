@@ -180,6 +180,17 @@ GitHub **已經不接受用帳號密碼**在終端機登入，必須改用 **Per
 
 **改程式 → `git add .` → `git commit -m "說明"` → `git push origin main` → 等 Streamlit 自動重建。**
 
+### 不想打指令？用 Cursor / VS Code 左側的 Git 圖示
+
+每次修改後，不一定要開終端機打指令，可以用編輯器內建的 **Source Control（原始檔控制）**：
+
+1. 左側邊欄點 **分支圖示**（或按 `Ctrl+Shift+G` / `Cmd+Shift+G`），會看到「變更」清單。
+2. 在「變更」的檔案上點 **+**，或點「變更」上方的 **+**，等於 `git add .`（全部加入）。
+3. 在上方 **Message** 輸入這次改了什麼（例如：修正首頁文字），按 **✓ Commit**，等於 `git commit -m "..."`。
+4. 點 **Sync Changes** 或 **↑ Push**，等於 `git push origin main`。
+
+做完這四步，GitHub 就會收到更新，Streamlit Cloud 會自動重新部署。**不必再開終端機打指令。**
+
 ---
 
 ## Deploy 之後頁面無顯示？排查步驟
