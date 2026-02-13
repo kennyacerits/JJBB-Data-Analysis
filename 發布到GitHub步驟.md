@@ -5,6 +5,29 @@ Streamlit 要部署時，需要從這個儲存庫讀取你的程式。
 
 ---
 
+## 第零步：設定 Git 的「作者」名稱與 Email（只需做一次）
+
+若 Cursor / 終端機出現：**請確認您的 Git "user.name" 及 "user.email"**，代表 Git 還不知道「這次提交是誰做的」，需要先設定一次（之後不用再設）。
+
+**意思**：  
+- **user.name**：顯示在 commit 紀錄上的名字（可用本名或暱稱）。  
+- **user.email**：建議填你 **GitHub 帳號綁定的 email**，這樣 GitHub 會把 commit 對應到你的帳號。
+
+在終端機執行（把下面換成你的名字與 email）：
+
+```bash
+git config --global user.name "你的名字或暱稱"
+git config --global user.email "你的email@example.com"
+```
+
+例如：  
+`git config --global user.name "Kenny"`  
+`git config --global user.email "kenny.acerits@gmail.com"`
+
+設好後再執行 **Commit** 或 `git commit` 就不會再問。
+
+---
+
 ## 第一步：確認電腦有 Git
 
 1. 打開 **終端機**（Terminal）。
