@@ -15,8 +15,19 @@ try:
 except ImportError:
     BASE_DIR = os.path.abspath(os.getcwd())
 
-# 希利創新每日報表預設目錄（與 Web 同層之 SEGA_TX/希利創新）
-HILI_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "SEGA_TX", "希利創新"))
+# 希利創新每日報表預設目錄：嘗試多種相對路徑（本機 Web 與 SEGA_TX 同層；雲端可能為 src/Web 且 SEGA_TX 在 repo 根）
+def _resolve_hili_data_dir():
+    candidates = [
+        os.path.join(BASE_DIR, "..", "SEGA_TX", "希利創新"),           # 與 Web 同層
+        os.path.join(BASE_DIR, "..", "..", "SEGA_TX", "希利創新"),     # 上兩層（例如 /mount/src/Web → /mount/SEGA_TX）
+    ]
+    for p in candidates:
+        resolved = os.path.abspath(p)
+        if os.path.isdir(resolved):
+            return resolved
+    return os.path.abspath(candidates[0])  # 預設顯示第一個候選路徑
+
+HILI_DATA_DIR = _resolve_hili_data_dir()
 
 # 報表必要欄位
 REQUIRED_COLS = ["商店名稱", "交易日期", "是否退款", "發卡公司", "實際扣款金額"]
