@@ -16,11 +16,18 @@ try:
 except ImportError:
     BASE_DIR = os.path.abspath(os.getcwd())
 
-# 希利創新每日報表目錄：嘗試多種相對路徑（本機 Web 與 SEGA_TX 同層；雲端可能為 src/Web 且 SEGA_TX 在 repo 根）
+# 希利創新每日報表目錄：優先使用環境變數，否則嘗試相對路徑（雲端可在 Streamlit 設定 HILI_DATA_DIR）
 def _resolve_hili_data_dir():
+    env_path = os.environ.get("HILI_DATA_DIR")
+    if env_path:
+        resolved = os.path.abspath(os.path.expanduser(env_path))
+        if os.path.isdir(resolved):
+            return resolved
+    # 先找「上一層／上兩層」的實際資料夾（本機每日更新、免複製），再找專案內（雲端部署用）
     candidates = [
         os.path.join(BASE_DIR, "..", "SEGA_TX", "希利創新"),
         os.path.join(BASE_DIR, "..", "..", "SEGA_TX", "希利創新"),
+        os.path.join(BASE_DIR, "SEGA_TX", "希利創新"),
     ]
     for p in candidates:
         resolved = os.path.abspath(p)

@@ -126,6 +126,11 @@ Web/
 ├── README.md
 ├── .streamlit/
 │   └── config.toml     # Streamlit 主題與設定
+├── SEGA_TX/            # 選用：同步後推送，雲端可自動載入（見 scripts/sync_hili_urs.py）
+│   └── 希利創新/
+│       └── URS-*.csv
+├── scripts/
+│   └── sync_hili_urs.py # 將 ../SEGA_TX/希利創新/ 同步到 Web/SEGA_TX/希利創新/
 └── pages/
     ├── 1_數據上傳.py
     ├── 2_數據探索.py
@@ -181,6 +186,37 @@ git push -u origin main
 - 免費方案為 **public repo** 才能部署；若有敏感資訊請勿上傳。
 - 機密設定可於 Streamlit Cloud 專案頁 **Settings → Secrets** 以 TOML 格式填入，程式內用 `st.secrets` 讀取。
 - 部署後「從工作目錄選擇」會是雲端暫存目錄，使用者主要仍以上傳檔案方式使用即可。
+
+### 5. 希利創新儀表板在雲端顯示「未偵測到目錄」時
+
+雲端主機**只會有 GitHub 儲存庫裡的檔案**，不會有你本機的 `SEGA_TX` 資料夾，除非一併放進 repo。
+
+**可採做法：**
+
+| 做法 | 說明 |
+|------|------|
+| **A. 把資料放進 GitHub** | 在 **Web 專案內**建立 `SEGA_TX/希利創新/`，放入 `URS-*.csv`，再 `git add`、`commit`、`push`。部署後程式會自動偵測專案內的 `SEGA_TX/希利創新`。若 repo 為 public，CSV 會公開。詳見下方「做法 A：將 SEGA_TX 加入 repo」。 |
+| **B. 用環境變數指定路徑** | 在 Streamlit Cloud 專案 **Settings → General → Environment variables** 新增 `HILI_DATA_DIR`，值為雲端上實際存在且含 URS-*.csv 的目錄絕對路徑（通常需自行在雲端掛載或建檔，免費方案較少此選項）。 |
+| **C. 不改 GitHub / 設定** | 雲端上直接使用儀表板左側「上傳 CSV」，手動上傳一或多個 `URS-*.csv` 即可分析。 |
+
+**做法 A：將 SEGA_TX 加入 repo（雲端自動載入）**
+
+- **本機**：**不用手動複製**。程式會優先讀取「上一層」的 `../SEGA_TX/希利創新`（與 Web 同層的實際資料夾），每天更新的 CSV 會直接反映在儀表板。
+- **雲端**：需把 `Web/SEGA_TX/希利創新/` 推上 GitHub，部署後才會自動載入。若 CSV 每天更新，要讓雲端也有最新資料時，可執行同步腳本後再 push：
+  1. 在 `Web` 專案根目錄執行：
+     ```bash
+     cd Web
+     python3 scripts/sync_hili_urs.py
+     ```
+  2. 腳本會把 `../SEGA_TX/希利創新/` 的 `URS-*.csv` 複製到 `Web/SEGA_TX/希利創新/`。
+  3. 再執行：
+     ```bash
+     git add SEGA_TX
+     git commit -m "同步希利創新 URS 報表"
+     git push
+     ```
+  4. Streamlit Cloud 重新部署後即可看到最新資料。
+- 若不想在 repo 裡放資料，雲端可改為使用儀表板左側「上傳 CSV」。
 
 ## 授權
 
