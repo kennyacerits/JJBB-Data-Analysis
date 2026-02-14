@@ -54,8 +54,8 @@
 - **希利創新 數據分析**（第一層功能）：專用儀表板，固定欄位與圖表邏輯，直接讀取希利創新報表格式。
 - **數據研究探討**：通用流程（上傳 → 探索 → 視覺化 → 報告），適用任意 CSV/Excel，供彈性分析與研究。
 
-實作：`pages/希利創新_交易分析儀表板.py` 讀取 **`../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv`**（已彙總各門市各支付別筆數與金額），依欄位對應實作「依店名／支付別／日期」的專用版面與計算邏輯；單一檔案即可支應儀表板，降低匯入與運算負擔。  
-**自動化**：若偵測到上述路徑或專案內對應路徑存在該 CSV，開啟儀表板頁面時可**自動載入**；仍可於側邊欄「重新載入」或改為「上傳 CSV」。
+實作：`pages/希利創新_交易分析儀表板.py` 讀取 **`../數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv`**（或 `../數據分析/希利創新/output/` 同檔名；已彙總各門市各支付別筆數與金額），依欄位對應實作「依店名／支付別／日期」的專用版面與計算邏輯；單一檔案即可支應儀表板，降低匯入與運算負擔。  
+**自動化**：若偵測到上述路徑或專案內 `數據分析/BI_希利創新/output/`（或 `數據分析/希利創新/output/`）存在該 CSV，開啟儀表板頁面時可**自動載入**；仍可於側邊欄「重新從預設路徑載入」或改為「上傳 CSV」。
 
 ---
 
@@ -85,16 +85,26 @@ streamlit run app.py
 
 ## 發布到 Google Colab
 
-1. 將專案上傳到 Colab（或複製到 Google Drive 後掛載）。
+1. 掛載 Google Drive（若專案在 Drive 上），並進入 **Web** 專案目錄：
 2. 在 Colab 儲存格執行：
 
 ```python
+# 掛載 Drive（專案在 Drive 時）
+from google.colab import drive
+drive.mount("/content/drive")
+
+# 進入 Web 專案目錄（路徑依你實際的 Drive 結構調整）
+# 若在「我的雲端硬碟」下：我的雲端硬碟/Web
+import os
+%cd /content/drive/MyDrive/我的雲端硬碟/Web
+# 若資料夾名為英文：%cd /content/drive/MyDrive/Web
+
 # 安裝依賴
 !pip install -q -r requirements.txt
 
-# 指定工作目錄（選用）：預設為 /content；若檔案在 Drive 可設為掛載路徑
-import os
-os.environ["STREAMLIT_BASE_DIR"] = "/content"  # 或 "/content/drive/MyDrive/你的資料夾"
+# 選用：明確指定 BASE_DIR，確保希利創新儀表板能找到 數據分析 彙總檔
+# 若 Web 與 數據分析 同在「我的雲端硬碟」下，設成 Web 目錄即可（程式會用 ../數據分析）
+os.environ["STREAMLIT_BASE_DIR"] = os.getcwd()  # 或 "/content/drive/MyDrive/我的雲端硬碟/Web"
 
 # 啟動 Streamlit（Colab 需用 headless 並配合 ngrok 或內建連結）
 !streamlit run app.py --server.headless true --server.port 8501
@@ -104,11 +114,12 @@ os.environ["STREAMLIT_BASE_DIR"] = "/content"  # 或 "/content/drive/MyDrive/你
    - `!pip install -q pyngrok`
    - 在 `streamlit run` 前執行 ngrok 指向 8501，並用產生的 URL 開啟。
 
-**Base directory 說明**  
-- 程式會自動判斷是否在 Colab 執行；工作目錄（base directory）預設為：
-  - **本機**：執行 `streamlit run` 時的當前目錄（`os.getcwd()`）。
-  - **Colab**：`/content`（可寫入），或由環境變數 `STREAMLIT_BASE_DIR`（或 `BASE_DIR`）指定。
-- 在 Colab 若先把 CSV/Excel 放到該目錄，於「數據上傳」頁可選擇「從工作目錄選擇」載入，無需再上傳檔案。
+**Colab 路徑說明**  
+- **一定要先 `%cd` 到 Web 專案目錄**再執行 `streamlit run app.py`，程式才會以該目錄為 `BASE_DIR`（若目錄內有 `app.py`，Colab 會自動採用目前工作目錄）。
+- Drive 掛載後路徑為 `/content/drive/MyDrive/`，底下可能是 `我的雲端硬碟` 或 `My Drive`，請依實際名稱改 `%cd` 路徑。
+- 希利創新儀表板會依序找：`BASE_DIR/../數據分析/BI_希利創新/output/`、`BASE_DIR/數據分析/...`。因此 **Web** 與 **數據分析** 若同在「我的雲端硬碟」下，無需改程式即可偵測到彙總檔。
+- 若路徑仍偵測不到，可在 Colab 設 `os.environ["HILI_DATA_FILE"] = "/content/drive/MyDrive/我的雲端硬碟/數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv"`（改為你的實際絕對路徑），儀表板會優先使用該檔。
+- 本機：`BASE_DIR` = 執行 `streamlit run` 時的當前目錄。
 
 ## 專案結構
 
@@ -120,7 +131,10 @@ Web/
 ├── README.md
 ├── .streamlit/
 │   └── config.toml     # Streamlit 主題與設定
-├── 數據分析/           # 選用：本機與 Web 同層時，儀表板讀取 ../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv
+├── 數據分析/           # 選用：雲端部署時儀表板讀取此處彙總檔；本機與 Web 同層時可讀 ../數據分析/BI_希利創新/output/
+│   ├── BI_希利創新/
+│   │   └── output/
+│   │       └── 希利創新娃娃機_每日交易明細.csv
 │   └── 希利創新/
 │       └── output/
 │           └── 希利創新娃娃機_每日交易明細.csv
@@ -201,18 +215,19 @@ git push -u origin main
 
 ### 5. 希利創新儀表板在雲端顯示「未偵測到」時
 
-儀表板設計為讀取 **`../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv`**（單一彙總檔）。雲端主機僅有 GitHub 儲存庫內檔案，不會有本機的 `數據分析` 目錄。
+儀表板設計為讀取單一彙總檔 **`希利創新娃娃機_每日交易明細.csv`**，路徑依序嘗試：`../數據分析/BI_希利創新/output/`、`../數據分析/希利創新/output/`、專案內 `數據分析/BI_希利創新/output/` 或 `數據分析/希利創新/output/`。雲端主機僅有 GitHub 儲存庫內檔案，不會有本機的 `數據分析` 目錄。
 
 **可採做法：**
 
 | 做法 | 說明 |
 |------|------|
-| **A. 把彙總檔放進 GitHub** | 在 Web 專案內建立對應路徑（例如 `數據分析/希利創新/output/`），放入 `希利創新娃娃機_每日交易明細.csv`，再 `git add`、`commit`、`push`。部署後程式可偵測專案內該檔。若 repo 為 public，CSV 會公開。 |
-| **B. 環境變數指定路徑** | 在 Streamlit Cloud **Settings → General → Environment variables** 新增 `HILI_DATA_FILE` 或 `HILI_DATA_DIR`，指向雲端上該 CSV 的絕對路徑或所在目錄（需自行於雲端提供檔案）。 |
+| **A. 把彙總檔放進 GitHub** | 在 Web 專案內建立 `數據分析/BI_希利創新/output/`（或 `數據分析/希利創新/output/`），放入 `希利創新娃娃機_每日交易明細.csv`，再 `git add`、`commit`、`push`。部署後程式可偵測專案內該檔。若 repo 為 public，CSV 會公開。 |
+| **B. 環境變數指定路徑** | 在 Streamlit Cloud **Settings → General → Environment variables** 新增 `HILI_DATA_FILE`，值為該 CSV 的**絕對路徑**（需自行於雲端提供檔案）。 |
 | **C. 上傳 CSV** | 雲端直接使用儀表板左側「上傳 CSV」，手動上傳 `希利創新娃娃機_每日交易明細.csv`（或同格式彙總檔）即可分析。 |
 
-- **本機**：若 `Web` 與 `數據分析` 在同一層（例如都在「我的雲端硬碟」下），程式會讀取 `../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv`，無需複製。每日更新該彙總檔後重新整理儀表板即可。
-- 若不想在 repo 裡放資料，雲端改為使用「上傳 CSV」即可。
+- **本機**：若 `Web` 與 `數據分析` 在同一層，程式會優先讀取上一層的彙總檔；專案內的 `數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv` 主要供雲端部署自動載入。
+- **雲端自動載入**：專案內已含 `數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv`，推送後雲端會偵測到該路徑並自動載入。若之後要更新雲端資料，覆蓋該檔後再 `git add`、`commit`、`push` 即可。
+- 若不想在 repo 裡放資料，雲端可改為使用「上傳 CSV」。
 
 ## 授權
 

@@ -1,6 +1,6 @@
 """
 希利創新娃娃機 交易分析儀表板
-資料來源：../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv（已彙總各門市各支付別筆數與金額）
+資料來源：../數據分析/BI_希利創新/output/ 或 ../數據分析/希利創新/output/ 之「希利創新娃娃機_每日交易明細.csv」（已彙總各門市各支付別筆數與金額）
 """
 import os
 import streamlit as st
@@ -125,7 +125,7 @@ with st.sidebar:
                 st.error(err)
         source = st.radio("或", ["使用已載入資料", "上傳 CSV"], key="hili_src")
     else:
-        st.caption("未偵測到彙總檔。請在專案內或上一層建立 數據分析/希利創新/output/ 並放入「希利創新娃娃機_每日交易明細.csv」，或使用「上傳 CSV」。")
+        st.caption("未偵測到彙總檔。請在專案內或上一層建立 數據分析/BI_希利創新/output/（或 數據分析/希利創新/output/）並放入「希利創新娃娃機_每日交易明細.csv」，或使用「上傳 CSV」。")
         st.code(HILI_SUMMARY_PATH, language=None)
         source = "上傳 CSV"
 

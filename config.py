@@ -30,9 +30,12 @@ def get_base_dir():
             return path
         except OSError:
             pass
-    # 2. Colab：預設用 /content（可寫入），若已掛載 Drive 可改設 BASE_DIR=/content/drive/MyDrive/...
+    # 2. Colab：若當前目錄像專案根（有 app.py），用 cwd，否則用 /content（掛載 Drive 後請設 STREAMLIT_BASE_DIR）
     if _is_colab():
-        for candidate in ["/content", os.getcwd()]:
+        cwd = os.getcwd()
+        if os.path.isfile(os.path.join(cwd, "app.py")):
+            return os.path.abspath(cwd)
+        for candidate in ["/content", cwd]:
             if os.path.isdir(candidate):
                 return os.path.abspath(candidate)
     # 3. 本機：使用目前工作目錄（執行 streamlit run 的目錄）
