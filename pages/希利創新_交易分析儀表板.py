@@ -1,10 +1,8 @@
 """
 希利創新娃娃機 交易分析儀表板
-資料來源：SEGA_TX/希利創新/ URS-YYYY-MM-DD.csv
-- 自動化：若偵測到資料目錄且有 URS-*.csv，開啟頁面時自動載入，無需手動按鈕。
+資料來源：../數據分析/希利創新/output/希利創新娃娃機_每日交易明細.csv（已彙總各門市各支付別筆數與金額）
 """
 import os
-import glob
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,85 +14,58 @@ try:
 except ImportError:
     BASE_DIR = os.path.abspath(os.getcwd())
 
-# 希利創新每日報表目錄：優先使用環境變數，否則嘗試相對路徑（雲端可在 Streamlit 設定 HILI_DATA_DIR）
-def _resolve_hili_data_dir():
-    env_path = os.environ.get("HILI_DATA_DIR")
-    if env_path:
-        resolved = os.path.abspath(os.path.expanduser(env_path))
-        if os.path.isdir(resolved):
-            return resolved
-    # 先找「上一層／上兩層」的實際資料夾（本機每日更新、免複製），再找專案內（雲端部署用）
+# 彙總檔檔名
+HILI_SUMMARY_FILENAME = "希利創新娃娃機_每日交易明細.csv"
+# 彙總檔必要欄位（對應儀表板：店名、日期、支付別、金額）
+REQUIRED_COLS = ["交易日期", "商店通稱", "支付工具", "金額"]
+
+
+def _resolve_hili_summary_path():
+    """解析彙總檔路徑：環境變數 > 數據分析/BI_希利創新/output > 數據分析/希利創新/output > 專案內"""
+    env_file = os.environ.get("HILI_DATA_FILE")
+    if env_file:
+        p = os.path.abspath(os.path.expanduser(env_file))
+        if os.path.isfile(p):
+            return p
     candidates = [
-        os.path.join(BASE_DIR, "..", "SEGA_TX", "希利創新"),
-        os.path.join(BASE_DIR, "..", "..", "SEGA_TX", "希利創新"),
-        os.path.join(BASE_DIR, "SEGA_TX", "希利創新"),
+        os.path.join(BASE_DIR, "..", "數據分析", "BI_希利創新", "output", HILI_SUMMARY_FILENAME),
+        os.path.join(BASE_DIR, "..", "數據分析", "希利創新", "output", HILI_SUMMARY_FILENAME),
+        os.path.join(BASE_DIR, "..", "..", "數據分析", "BI_希利創新", "output", HILI_SUMMARY_FILENAME),
+        os.path.join(BASE_DIR, "..", "..", "數據分析", "希利創新", "output", HILI_SUMMARY_FILENAME),
+        os.path.join(BASE_DIR, "數據分析", "希利創新", "output", HILI_SUMMARY_FILENAME),
+        os.path.join(BASE_DIR, "數據分析", "BI_希利創新", "output", HILI_SUMMARY_FILENAME),
     ]
     for p in candidates:
         resolved = os.path.abspath(p)
-        if os.path.isdir(resolved):
+        if os.path.isfile(resolved):
             return resolved
     return os.path.abspath(candidates[0])
 
-HILI_DATA_DIR = _resolve_hili_data_dir()
-REQUIRED_COLS = ["商店名稱", "交易日期", "是否退款", "發卡公司", "實際扣款金額"]
 
-
-def _store_short_name(full_name):
-    if pd.isna(full_name) or not isinstance(full_name, str):
-        return full_name
-    s = full_name.strip()
-    return s.split()[-1] if " " in s else s
-
-
-def load_urs_csv(path_or_file, encoding="utf-8"):
+def load_summary_csv(path_or_file, encoding="utf-8"):
+    """載入每日交易明細彙總檔，回傳標準化 DataFrame（店名、日期、支付別、金額）。"""
     if hasattr(path_or_file, "read"):
         df = pd.read_csv(path_or_file, encoding=encoding)
     else:
         df = pd.read_csv(path_or_file, encoding=encoding)
     if not all(c in df.columns for c in REQUIRED_COLS):
-        return None
-    df = df[df["是否退款"].astype(str).str.strip() != "是"].copy()
-    df["交易日期"] = pd.to_numeric(df["交易日期"], errors="coerce").astype("Int64")
-    df = df.dropna(subset=["交易日期"])
-    df["日期"] = pd.to_datetime(df["交易日期"].astype(str), format="%Y%m%d", errors="coerce")
+        return None, f"缺少欄位，需含：{', '.join(REQUIRED_COLS)}"
+    df = df.copy()
+    df["日期"] = pd.to_datetime(df["交易日期"], errors="coerce")
     df = df.dropna(subset=["日期"])
-    df["店名"] = df["商店名稱"].map(_store_short_name)
-    df["支付別"] = df["發卡公司"].fillna("現金").astype(str).str.strip().replace("", "現金")
-    df["金額"] = pd.to_numeric(df["實際扣款金額"], errors="coerce").fillna(0)
-    return df[["店名", "日期", "支付別", "金額", "交易日期"]]
+    df["店名"] = df["商店通稱"].astype(str).str.strip()
+    df["支付別"] = df["支付工具"].fillna("現金").astype(str).str.strip().replace("", "現金")
+    df["金額"] = pd.to_numeric(df["金額"], errors="coerce").fillna(0)
+    return df[["店名", "日期", "支付別", "金額"]], None
 
 
-def load_hili_data(data_dir=None, uploaded_files=None):
-    if uploaded_files:
-        dfs = []
-        for f in uploaded_files:
-            if f.name.lower().endswith(".csv"):
-                try:
-                    df = load_urs_csv(f)
-                    if df is not None:
-                        dfs.append(df)
-                except Exception as e:
-                    return None, f"讀取 {f.name} 失敗：{e}"
-        if not dfs:
-            return None, "沒有可用的 URS 格式 CSV"
-        return pd.concat(dfs, ignore_index=True), None
-
-    if not data_dir or not os.path.isdir(data_dir):
-        return None, None
-    files = sorted(glob.glob(os.path.join(data_dir, "URS-*.csv")))
-    if not files:
-        return None, f"目錄內沒有 URS-*.csv：{data_dir}"
-    dfs = []
-    for path in files:
-        try:
-            df = load_urs_csv(path)
-            if df is not None:
-                dfs.append(df)
-        except Exception as e:
-            return None, f"讀取 {os.path.basename(path)} 失敗：{e}"
-    if not dfs:
-        return None, "沒有符合欄位格式的檔案"
-    return pd.concat(dfs, ignore_index=True), None
+def load_hili_data(file_path=None, uploaded_file=None):
+    """載入希利創新資料。file_path 為彙總檔路徑，或 uploaded_file 為上傳檔案。回傳 (df, error_msg)。"""
+    if uploaded_file is not None:
+        return load_summary_csv(uploaded_file)
+    if file_path and os.path.isfile(file_path):
+        return load_summary_csv(file_path)
+    return None, None
 
 
 def build_summary_table(df, date_min, date_max):
@@ -129,23 +100,24 @@ def build_summary_table(df, date_min, date_max):
 st.set_page_config(page_title="希利創新 交易分析儀表板", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 st.markdown("## 希利創新娃娃機 交易分析儀表板")
 
-# 自動化：若尚無資料且資料目錄存在且有 URS-*.csv，自動載入
-if "hili_raw_df" not in st.session_state or st.session_state["hili_raw_df"] is None:
-    if os.path.isdir(HILI_DATA_DIR):
-        files = glob.glob(os.path.join(HILI_DATA_DIR, "URS-*.csv"))
-        if files:
-            raw_df, err = load_hili_data(data_dir=HILI_DATA_DIR)
-            if raw_df is not None and err is None:
-                st.session_state["hili_raw_df"] = raw_df
+HILI_SUMMARY_PATH = _resolve_hili_summary_path()
+file_exists = os.path.isfile(HILI_SUMMARY_PATH)
 
-# 側邊欄：資料來源與手動選項
+# 自動化：若尚無資料且彙總檔存在，自動載入
+if "hili_raw_df" not in st.session_state or st.session_state["hili_raw_df"] is None:
+    if file_exists:
+        raw_df, err = load_hili_data(file_path=HILI_SUMMARY_PATH)
+        if raw_df is not None and err is None:
+            st.session_state["hili_raw_df"] = raw_df
+
+# 側邊欄
 with st.sidebar:
     st.subheader("資料來源")
-    use_dir = os.path.isdir(HILI_DATA_DIR)
-    if use_dir:
-        st.caption(f"目錄：{HILI_DATA_DIR}")
-        if st.button("重新從目錄載入"):
-            raw_df, err = load_hili_data(data_dir=HILI_DATA_DIR)
+    if file_exists:
+        st.caption(f"已偵測到：{HILI_SUMMARY_FILENAME}")
+        st.code(HILI_SUMMARY_PATH, language=None)
+        if st.button("重新從預設路徑載入"):
+            raw_df, err = load_hili_data(file_path=HILI_SUMMARY_PATH)
             if raw_df is not None:
                 st.session_state["hili_raw_df"] = raw_df
                 st.success(f"已載入 {len(raw_df):,} 筆")
@@ -153,13 +125,14 @@ with st.sidebar:
                 st.error(err)
         source = st.radio("或", ["使用已載入資料", "上傳 CSV"], key="hili_src")
     else:
-        st.caption(f"未偵測到目錄：{HILI_DATA_DIR}")
+        st.caption("未偵測到彙總檔。請在專案內或上一層建立 數據分析/希利創新/output/ 並放入「希利創新娃娃機_每日交易明細.csv」，或使用「上傳 CSV」。")
+        st.code(HILI_SUMMARY_PATH, language=None)
         source = "上傳 CSV"
 
     if source == "上傳 CSV":
-        uploaded = st.file_uploader("上傳 URS-*.csv（可多檔）", type=["csv"], accept_multiple_files=True)
+        uploaded = st.file_uploader(f"上傳 {HILI_SUMMARY_FILENAME}（或同格式）", type=["csv"])
         if uploaded:
-            raw_df, err = load_hili_data(uploaded_files=uploaded)
+            raw_df, err = load_hili_data(uploaded_file=uploaded)
             if raw_df is not None:
                 st.session_state["hili_raw_df"] = raw_df
                 st.success(f"已載入 {len(raw_df):,} 筆")
@@ -167,7 +140,7 @@ with st.sidebar:
                 st.error(err)
 
 if "hili_raw_df" not in st.session_state or st.session_state["hili_raw_df"] is None:
-    st.info("請在左側「上傳 CSV」或確認資料目錄存在並按「重新從目錄載入」。")
+    st.info("請在左側上傳「希利創新娃娃機_每日交易明細.csv」，或確認預設路徑存在該檔並按「重新從預設路徑載入」。")
     st.stop()
 
 df = st.session_state["hili_raw_df"]
