@@ -83,6 +83,16 @@ streamlit run app.py
 
 瀏覽器會自動開啟，若未開啟請至：**http://localhost:8501**
 
+### 希利創新彙總檔 push 到 GitHub（排程用）
+
+若已依序執行 BI 主程式（會自動複製彙總檔到 Web），要將變更推送到 GitHub 時，於 **Web** 目錄執行：
+
+```bash
+python app.py --push-data
+```
+
+會對 `數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv` 執行 `git add`、`commit`、`push`，執行完即結束（不啟動 Streamlit）。適合與 BI 主程式搭配做兩支程式的自動執行設定。
+
 ## 發布到 Google Colab
 
 1. 掛載 Google Drive（若專案在 Drive 上），並進入 **Web** 專案目錄：

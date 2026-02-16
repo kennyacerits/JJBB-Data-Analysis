@@ -1,7 +1,33 @@
 """
 網頁數據分析與發布系統 - 主程式
 使用 Streamlit 建置，支援本機與 Google Colab。
+排程用：python app.py --push-data 僅執行彙總檔 push 到 GitHub 後結束（不啟動 Streamlit）。
 """
+import sys
+
+if "--push-data" in sys.argv:
+    import subprocess
+    from pathlib import Path
+    web_root = Path(__file__).resolve().parent
+    csv_rel = "數據分析/BI_希利創新/output/希利創新娃娃機_每日交易明細.csv"
+    if not (web_root / ".git").is_dir():
+        print("錯誤：此目錄不是 Git 儲存庫。")
+        sys.exit(1)
+    subprocess.run(["git", "add", csv_rel], cwd=web_root, check=True, capture_output=True)
+    r = subprocess.run(
+        ["git", "commit", "-m", "同步希利創新每日交易明細彙總檔"],
+        cwd=web_root, capture_output=True, text=True
+    )
+    if r.returncode != 0:
+        if "nothing to commit" in (r.stderr or "") or "nothing to commit" in (r.stdout or ""):
+            print("無變更可提交，未執行 push。")
+            sys.exit(0)
+        print("git commit 失敗：", r.stderr or r.stdout)
+        sys.exit(1)
+    subprocess.run(["git", "push", "origin", "main"], cwd=web_root, check=True)
+    print("已 push 到 GitHub。")
+    sys.exit(0)
+
 import streamlit as st
 
 # 路徑與環境設定（Colab / 本機共用）
