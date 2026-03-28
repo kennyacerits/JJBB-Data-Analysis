@@ -16,6 +16,8 @@ except ImportError:
 
 # 彙總檔檔名
 HILI_SUMMARY_FILENAME = "希利創新娃娃機_每日交易明細.csv"
+# 偵測預設路徑彙總檔是否更新：輪詢間隔（秒）。0＝停用。環境變數 HILI_CSV_POLL_SEC 可覆寫。
+HILI_CSV_POLL_SEC = int(os.environ.get("HILI_CSV_POLL_SEC", "30"))
 # 彙總檔必要欄位（對應儀表板：店名、日期、支付別、金額）
 REQUIRED_COLS = ["交易日期", "商店通稱", "支付工具", "金額"]
 
@@ -96,6 +98,40 @@ def build_summary_table(df, date_min, date_max):
     return g[cols]
 
 
+def _register_hili_csv_mtime_watcher(summary_path: str) -> None:
+    """
+    以 st.fragment(run_every=…) 定期比對彙總檔 mtime；有變更則清空 hili_raw_df 並 st.rerun() 重新載入。
+    與 server.runOnSave 不同：runOnSave 只對應用程式 .py 存檔，不會因 CSV 更新而重跑。
+    """
+    if HILI_CSV_POLL_SEC <= 0 or not summary_path or not os.path.isfile(summary_path):
+        return
+    frag = getattr(st, "fragment", None)
+    if frag is None:
+        return
+    try:
+        dec = frag(run_every=HILI_CSV_POLL_SEC)
+    except TypeError:
+        return
+
+    @dec
+    def _poll_mtime():
+        try:
+            mtime = os.path.getmtime(summary_path)
+        except OSError:
+            return
+        key = "_hili_csv_mtime_seen"
+        prev = st.session_state.get(key)
+        if prev is None:
+            st.session_state[key] = mtime
+            return
+        if mtime != prev:
+            st.session_state[key] = mtime
+            st.session_state.pop("hili_raw_df", None)
+            st.rerun()
+
+    _poll_mtime()
+
+
 # --- 頁面 ---
 st.set_page_config(page_title="希利創新 交易分析儀表板", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 st.markdown("## 希利創新娃娃機 交易分析儀表板")
@@ -115,6 +151,11 @@ with st.sidebar:
     st.subheader("資料來源")
     if file_exists:
         st.caption(f"已偵測到：{HILI_SUMMARY_FILENAME}")
+        if HILI_CSV_POLL_SEC > 0:
+            st.caption(
+                f"預設路徑彙總檔每 {HILI_CSV_POLL_SEC} 秒檢查是否更新；"
+                "有變更時會自動重新載入（與程式碼存檔的 runOnSave 無關）。"
+            )
         st.code(HILI_SUMMARY_PATH, language=None)
         if st.button("重新從預設路徑載入"):
             raw_df, err = load_hili_data(file_path=HILI_SUMMARY_PATH)
@@ -138,6 +179,10 @@ with st.sidebar:
                 st.success(f"已載入 {len(raw_df):,} 筆")
             elif err:
                 st.error(err)
+
+# 僅「使用已載入資料」時輪詢磁碟檔；避免上傳模式被背景檔案覆寫 session
+if file_exists and HILI_CSV_POLL_SEC > 0 and source == "使用已載入資料":
+    _register_hili_csv_mtime_watcher(HILI_SUMMARY_PATH)
 
 if "hili_raw_df" not in st.session_state or st.session_state["hili_raw_df"] is None:
     st.info("請在左側上傳「希利創新娃娃機_每日交易明細.csv」，或確認預設路徑存在該檔並按「重新從預設路徑載入」。")

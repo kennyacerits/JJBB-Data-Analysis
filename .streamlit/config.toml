@@ -9,6 +9,8 @@ font = "sans serif"
 headless = true
 enableCORS = false
 enableXsrfProtection = true
+# 本機開發：儲存 Python／頁面檔後自動重跑 app（需 Streamlit >= 1.29）
+runOnSave = true
 
 [browser]
 gatherUsageStats = false
